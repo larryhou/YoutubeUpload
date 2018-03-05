@@ -9,7 +9,6 @@
 #import "ViewController.h"
 #import "AppDelegate.h"
 
-
 @interface ViewController ()
 
 @end
@@ -111,8 +110,7 @@
                                        @"license":@"youtube"
                                        }
                                };
-    
-    NSURL* server = [NSURL URLWithString:@"https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status,contentDetails"];
+    NSURL* server = [NSURL URLWithString:@"https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status"];
     
     NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:server];
     request.HTTPMethod = @"POST";
