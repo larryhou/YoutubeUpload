@@ -183,7 +183,7 @@
 //MARK: check status
 - (void)checkUploadStatus:(NSString *)server
                  filepath:(NSString *)filepath
-               completion:(void (^)(NSInteger, BOOL))completion
+               completion:(void (^)(NSInteger position, BOOL complete))completion
 {
     NSNumber* filesize = [self sizeOf:filepath];
     NSDictionary *header = @{@"Authorization":[NSString stringWithFormat:@"Bearer %@", _token],
@@ -192,24 +192,25 @@
                              };
     [self sendRequest:server method:@"PUT" header:header payload:nil completion:^(NSHTTPURLResponse * _Nullable response)
     {
+        NSInteger position = -1;
         if (response && response.statusCode == 308)
         {
-            NSInteger offset = 0;
             NSString *field = response.allHeaderFields[@"Range"];
             if (field)
             {
                 NSString *range = [[field componentsSeparatedByString:@"="] lastObject];
                 if (range)
                 {
-                    offset = [[[range componentsSeparatedByString:@"-"] firstObject] integerValue];
+                    NSInteger offset = [[[range componentsSeparatedByString:@"-"] firstObject] integerValue];
+                    if (offset > 0) { position = offset + 1; }
                 }
             }
             
-            completion(offset, offset == filesize.integerValue - 1);
+            completion(position, position == filesize.integerValue);
         }
         else
         {
-            completion(-1, NO);
+            completion(position, NO);
         }
     }];
 }
@@ -261,9 +262,8 @@
 
 - (void)resumeVideoContent:(NSString *)filepath
                         to:(NSString *)server
-                    offset:(NSInteger)offset
+                    position:(NSInteger)position
 {
-    NSInteger position = offset + 1;
     [self setStatus:UploadStatusUpload];
     NSData *bytes = [NSData dataWithContentsOfFile:filepath];
     NSData *payload = [bytes subdataWithRange:NSMakeRange(position, bytes.length - position)];
@@ -364,9 +364,9 @@
     if (_server && _filepath)
     {
         [self setStatus:UploadStatusIntegrityCheck];
-        [self checkUploadStatus:_server filepath:_filepath completion:^(NSInteger offset, BOOL complete)
+        [self checkUploadStatus:_server filepath:_filepath completion:^(NSInteger position, BOOL complete)
         {
-            if (offset >= 0)
+            if (position >= 0)
             {
                 if (complete)
                 {
@@ -374,7 +374,7 @@
                 }
                 else
                 {
-                    [self resumeVideoContent:_filepath to:_server offset:offset];
+                    [self resumeVideoContent:_filepath to:_server position:position];
                 }
             }
         }];

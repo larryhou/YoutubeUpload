@@ -51,9 +51,9 @@ typedef NS_ENUM(NSInteger, UploadStatus)
 
 - (void)checkUploadStatus:(NSString * _Nonnull)server
                  filepath:(NSString * _Nonnull)filepath
-               completion:(void (^_Nonnull)(NSInteger offset, BOOL complete))completion;
+               completion:(void (^_Nonnull)(NSInteger position, BOOL complete))completion;
 
 - (void)resumeVideoContent:(NSString * _Nonnull)filepath
                         to:(NSString * _Nonnull)server
-                    offset:(NSInteger)offset;
+                    position:(NSInteger)position;
 @end
