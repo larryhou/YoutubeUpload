@@ -9,11 +9,6 @@
 #import <UIKit/UIKit.h>
 #import "YouTubeUploader.h"
 
-@import AppAuth;
-
 @interface ViewController : UIViewController<YouTubeUploaderDelegate>
-
-@property(nonatomic, strong, nullable) OIDAuthState *accountAuth;
-@property (nonatomic, strong, nullable) id<OIDAuthorizationFlowSession> authorizationSession;
 @end
 
