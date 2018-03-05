@@ -19,6 +19,7 @@
 {
     [super viewDidLoad];
     
+    [YouTubeUploader.sharedUploader setDelegate:self];
     [YouTubeUploader.sharedUploader requestAuthorization:^(OIDAuthState * _Nullable authState)
      {
          [self uploadSampleVideo];
