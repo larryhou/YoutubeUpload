@@ -13,17 +13,30 @@
 typedef NS_ENUM(NSInteger, UploadStatus)
 {
     UploadStatusNone = 0,
+    UploadStatusDiscover,
     UploadStatusAuthorize,
-    UploadStatusConfig,
+    UploadStatusConfigurate,
     UploadStatusUpload,
-    UploadStatusFinish,
+    UploadStatusIntegrityCheck,
+    UploadStatusComplete,
     UploadStatusError
 };
+
+@class YouTubeUploader;
+@protocol YouTubeUploaderDelegate<NSObject>
+
+@optional
+- (void)YouTubeUploader:(YouTubeUploader * _Nonnull)uploader status:(UploadStatus)status;
+
+@optional
+- (void)YouTubeUploader:(YouTubeUploader * _Nonnull)uploader progress: (float)progress;
+@end
 
 @interface YouTubeUploader : NSObject<NSURLSessionDataDelegate>
 
 @property(nonatomic, readonly) BOOL uploading;
 @property(nonatomic, readonly) UploadStatus status;
+@property(nonatomic, strong, nullable) id<YouTubeUploaderDelegate> delegate;
 
 + (instancetype _Nonnull)sharedUploader;
 
@@ -34,7 +47,6 @@ typedef NS_ENUM(NSInteger, UploadStatus)
               description:(NSString * _Nonnull)description;
 
 - (void)sendVideoContent:(NSString * _Nonnull)filepath
-                filesize:(NSNumber * _Nonnull)filesize
                       to:(NSString * _Nonnull)server;
 
 - (void)resumeVideoContent:(NSString * _Nonnull)filepath

@@ -25,6 +25,15 @@
 
 @implementation YouTubeUploader
 
+- (void)setStatus:(UploadStatus)status
+{
+    _status = status;
+    if ([_delegate respondsToSelector:@selector(YouTubeUploader:status:)])
+    {
+        [_delegate YouTubeUploader:self status:_status];
+    }
+}
+
 + (instancetype)sharedUploader
 {
     static YouTubeUploader *instance;
@@ -44,6 +53,7 @@
                          sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
                          delegate:self
                          delegateQueue:NSOperationQueue.mainQueue];
+        [self setStatus:UploadStatusNone];
     }
     
     return self;
@@ -57,7 +67,7 @@
         completion(_auth);
         return;
     }
-    
+    [self setStatus:UploadStatusDiscover];
     NSURL *issuer = [NSURL URLWithString:@"https://accounts.google.com"];
     [OIDAuthorizationService discoverServiceConfigurationForIssuer:issuer
                                                         completion:^(OIDServiceConfiguration *_Nullable configuration, NSError *_Nullable error)
@@ -86,6 +96,7 @@
 - (void)requestAuthorization:(OIDServiceConfiguration *)configuration
                   completion:(void (^)(OIDAuthState* authState))completion
 {
+    [self setStatus:UploadStatusAuthorize];
     NSString* plist = [[NSBundle.mainBundle pathForResource:@"Youtube" ofType:@"bundle"] stringByAppendingPathComponent:@"client-id-iOS.plist"];
     NSDictionary* data = [[NSDictionary alloc] initWithContentsOfFile:plist];
     NSLog(@"CLIENT_ID_INFO:%@", data);
@@ -170,11 +181,11 @@
 }
 
 //MARK: check status
-- (void)checkUploadStatus:(NSString *)server filepath:(NSString *)filepath completion:(void (^)(NSInteger))completion
+- (void)checkUploadStatus:(NSString *)server
+                 filepath:(NSString *)filepath
+               completion:(void (^)(NSInteger, BOOL))completion
 {
-    NSDictionary<NSFileAttributeKey, id>* attributes = [NSFileManager.defaultManager attributesOfItemAtPath:filepath error:nil];
-    
-    NSNumber* filesize = (NSNumber *)attributes[NSFileSize];
+    NSNumber* filesize = [self sizeOf:filepath];
     NSDictionary *header = @{@"Authorization":[NSString stringWithFormat:@"Bearer %@", _token],
                              @"Content-Length":@0,
                              @"Content-Range":[NSString stringWithFormat:@"bytes */%@", filesize]
@@ -194,13 +205,19 @@
                 }
             }
             
-            completion(offset);
+            completion(offset, offset == filesize.integerValue - 1);
         }
         else
         {
-            completion(-1);
+            completion(-1, NO);
         }
     }];
+}
+
+- (NSNumber *)sizeOf:(NSString *)filepath
+{
+    NSDictionary<NSFileAttributeKey, id>* attributes = [NSFileManager.defaultManager attributesOfItemAtPath:filepath error:nil];
+    return (NSNumber *)attributes[NSFileSize];
 }
 
 //MARK: upload video
@@ -210,7 +227,7 @@
 {
     _filepath = filepath;
     _server = nil;
-    
+    [self setStatus:UploadStatusConfigurate];
     NSDictionary* metadata = @{@"snippet":@{
                                        @"categoryId":@20,
                                        @"description":description,
@@ -223,10 +240,8 @@
                                        @"license":@"youtube"
                                        }
                                };
-    NSDictionary<NSFileAttributeKey, id>* attributes = [NSFileManager.defaultManager attributesOfItemAtPath:filepath error:nil];
     
-    NSNumber* filesize = (NSNumber *)attributes[NSFileSize];
-    
+    NSNumber* filesize = [self sizeOf:filepath];
     NSDictionary *header = @{@"Authorization":[NSString stringWithFormat:@"Bearer %@", _token],
                              @"Content-Type":@"application/json; charset=UTF-8",
                              @"X-Upload-Content-Length":[NSString stringWithFormat:@"%@", filesize],
@@ -239,7 +254,7 @@
     {
         if (response && response.statusCode == 200)
         {
-            [self sendVideoContent:filepath filesize:filesize to:response.allHeaderFields[@"Location"]];
+            [self sendVideoContent:filepath to:response.allHeaderFields[@"Location"]];
         }
     }];
 }
@@ -249,6 +264,7 @@
                     offset:(NSInteger)offset
 {
     NSInteger position = offset + 1;
+    [self setStatus:UploadStatusUpload];
     NSData *bytes = [NSData dataWithContentsOfFile:filepath];
     NSData *payload = [bytes subdataWithRange:NSMakeRange(position, bytes.length - position)];
     
@@ -259,8 +275,10 @@
     [request setValue:[NSString stringWithFormat:@"bytes %lu-%lu/%lu", position, bytes.length - 1, bytes.length] forHTTPHeaderField:@"Content-Range"];
     request.HTTPBody = payload;
     
+    _uploading = YES;
     [[_videoSession dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)
       {
+          _uploading = NO;
           if (error == nil)
           {
               NSLog(@"UPLOAD_RESUME %@", response);
@@ -268,20 +286,27 @@
               if (http.statusCode == 200)
               {
                   NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
+                  [self setStatus:UploadStatusComplete];
+              }
+              else
+              {
+                  [self setStatus:UploadStatusError];
               }
           }
           else
           {
               NSLog(@"error %@", error);
+              [self setStatus:UploadStatusError];
           }
       }] resume];
 }
 
 - (void)sendVideoContent:(NSString *)filepath
-                filesize:(NSNumber *)filesize
                       to:(NSString *)server
 {
     _server = server;
+    [self setStatus:UploadStatusUpload];
+    NSNumber *filesize = [self sizeOf:filepath];
     NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:server]];
     request.HTTPMethod = @"PUT";
     [request setValue:[NSString stringWithFormat:@"Bearer %@", _token] forHTTPHeaderField:@"Authorization"];
@@ -289,8 +314,10 @@
     [request setValue:@"video/*" forHTTPHeaderField:@"Content-Type"];
     request.HTTPBody = [NSData dataWithContentsOfFile:filepath];
     
+    _uploading = YES;
     [[_videoSession dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)
       {
+          _uploading = NO;
           if (error == nil)
           {
               NSLog(@"UPLOAD %@", response);
@@ -298,11 +325,17 @@
               if (http.statusCode == 200)
               {
                   NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
+                  [self setStatus:UploadStatusComplete];
+              }
+              else
+              {
+                  [self setStatus:UploadStatusError];
               }
           }
           else
           {
               NSLog(@"error %@", error);
+              [self setStatus:UploadStatusError];
           }
       }] resume];
 }
@@ -310,18 +343,39 @@
 //MARK: upload delegate
 -(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didSendBodyData:(int64_t)bytesSent totalBytesSent:(int64_t)totalBytesSent totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend
 {
+    float progress = (float)(100*(double)totalBytesSent / (double)totalBytesExpectedToSend);
+    if ([_delegate respondsToSelector:@selector(YouTubeUploader:progress:)])
+    {
+        [_delegate YouTubeUploader:self progress:progress];
+    }
+    
     NSLog(@"++ %5.2f%% %lld %lld", 100*(double)totalBytesSent / (double)totalBytesExpectedToSend, totalBytesSent, totalBytesExpectedToSend);
+}
+
+- (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(NSError *)error
+{
+    [self setStatus:UploadStatusError];
 }
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
 {
+    [self setStatus:UploadStatusError];
+    
     if (_server && _filepath)
     {
-        [self checkUploadStatus:_server filepath:_filepath completion:^(NSInteger offset)
+        [self setStatus:UploadStatusIntegrityCheck];
+        [self checkUploadStatus:_server filepath:_filepath completion:^(NSInteger offset, BOOL complete)
         {
             if (offset >= 0)
             {
-                [self resumeVideoContent:_filepath to:_server offset:offset];
+                if (complete)
+                {
+                    [self setStatus:UploadStatusComplete];
+                }
+                else
+                {
+                    [self resumeVideoContent:_filepath to:_server offset:offset];
+                }
             }
         }];
     }
