@@ -181,8 +181,8 @@
 }
 
 //MARK: check status
-- (void)checkUploadStatus:(NSString *)server
-                 filepath:(NSString *)filepath
+- (void)checkUploadStatus:(NSString *)filepath
+                   server:(NSString *)server
                completion:(void (^)(NSInteger position, BOOL complete))completion
 {
     NSNumber* filesize = [self sizeOf:filepath];
@@ -364,7 +364,7 @@
     if (_server && _filepath)
     {
         [self setStatus:UploadStatusIntegrityCheck];
-        [self checkUploadStatus:_server filepath:_filepath completion:^(NSInteger position, BOOL complete)
+        [self checkUploadStatus:_filepath server:_server completion:^(NSInteger position, BOOL complete)
         {
             if (position >= 0)
             {
