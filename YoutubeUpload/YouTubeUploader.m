@@ -279,25 +279,7 @@
     [[_videoSession dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)
       {
           _uploading = NO;
-          if (error == nil)
-          {
-              NSLog(@"UPLOAD_RESUME %@", response);
-              NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
-              if (http.statusCode == 200)
-              {
-                  NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
-                  [self setStatus:UploadStatusComplete];
-              }
-              else
-              {
-                  [self setStatus:UploadStatusError];
-              }
-          }
-          else
-          {
-              NSLog(@"error %@", error);
-              [self setStatus:UploadStatusError];
-          }
+          [self processUploadCompletion:data response:response error:error];
       }] resume];
 }
 
@@ -318,26 +300,44 @@
     [[_videoSession dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)
       {
           _uploading = NO;
-          if (error == nil)
-          {
-              NSLog(@"UPLOAD %@", response);
-              NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
-              if (http.statusCode == 200)
-              {
-                  NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
-                  [self setStatus:UploadStatusComplete];
-              }
-              else
-              {
-                  [self setStatus:UploadStatusError];
-              }
-          }
-          else
-          {
-              NSLog(@"error %@", error);
-              [self setStatus:UploadStatusError];
-          }
+          [self processUploadCompletion:data response:response error:error];
       }] resume];
+}
+
+- (void)processUploadCompletion:(NSData *)data response:(NSURLResponse *)response error:(NSError *)error
+{
+    if (error == nil)
+    {
+        NSLog(@"UPLOAD %@", response);
+        NSString *message = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
+        if (http.statusCode == 200)
+        {
+            NSLog(@"%@", message);
+            [self setStatus:UploadStatusComplete];
+            [self alertWithTitle:@"UPLOAD SUCCESS" message:nil];
+        }
+        else
+        {
+            [self setStatus:UploadStatusError];
+            [self alertWithTitle:[NSString stringWithFormat:@"%ld", http.statusCode]
+                         message:message];
+        }
+    }
+    else
+    {
+        NSLog(@"error %@", error);
+        [self setStatus:UploadStatusError];
+        [self alertWithTitle:@"error" message:nil];
+    }
+}
+
+//MARK: alert
+- (void)alertWithTitle:(NSString *)title message:(NSString *)message
+{
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [[self frontViewController] presentViewController:alert animated:true completion:nil];
 }
 
 //MARK: upload delegate
