@@ -271,7 +271,7 @@
     NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:server]];
     request.HTTPMethod = @"PUT";
     [request setValue:[NSString stringWithFormat:@"Bearer %@", _token] forHTTPHeaderField:@"Authorization"];
-    [request setValue:[NSString stringWithFormat:@"%lu", payload.length] forHTTPHeaderField:@"Content-Length"];
+    [request setValue:[NSString stringWithFormat:@"%ld", payload.length] forHTTPHeaderField:@"Content-Length"];
     [request setValue:[NSString stringWithFormat:@"bytes %ld-%ld/%ld", position, bytes.length - 1, bytes.length] forHTTPHeaderField:@"Content-Range"];
     request.HTTPBody = payload;
     
