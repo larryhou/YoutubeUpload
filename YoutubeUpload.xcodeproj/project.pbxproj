@@ -10,6 +10,7 @@
 		6BB745D320495ABF00415C51 /* AppAuth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BB745CC20495A6500415C51 /* AppAuth.framework */; };
 		6BB745D420495ABF00415C51 /* AppAuth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6BB745CC20495A6500415C51 /* AppAuth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6BB745D8204CEF0700415C51 /* YouTubeUploader.m in Sources */ = {isa = PBXBuildFile; fileRef = 6BB745D7204CEF0700415C51 /* YouTubeUploader.m */; };
+		6BB745FD204E327400415C51 /* Reachability.m in Sources */ = {isa = PBXBuildFile; fileRef = 6BB745FC204E327400415C51 /* Reachability.m */; };
 		6BC3473220495959006FA912 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 6BC3473120495959006FA912 /* AppDelegate.m */; };
 		6BC3473520495959006FA912 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 6BC3473420495959006FA912 /* ViewController.m */; };
 		6BC3473820495959006FA912 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6BC3473620495959006FA912 /* Main.storyboard */; };
@@ -37,6 +38,8 @@
 		6BB745CC20495A6500415C51 /* AppAuth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = AppAuth.framework; sourceTree = "<group>"; };
 		6BB745D6204CEF0700415C51 /* YouTubeUploader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YouTubeUploader.h; sourceTree = "<group>"; };
 		6BB745D7204CEF0700415C51 /* YouTubeUploader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = YouTubeUploader.m; sourceTree = "<group>"; };
+		6BB745FB204E327400415C51 /* Reachability.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Reachability.h; sourceTree = "<group>"; };
+		6BB745FC204E327400415C51 /* Reachability.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Reachability.m; sourceTree = "<group>"; };
 		6BC3472D20495959006FA912 /* YoutubeUpload.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YoutubeUpload.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6BC3473020495959006FA912 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		6BC3473120495959006FA912 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -94,6 +97,8 @@
 				6BC3473120495959006FA912 /* AppDelegate.m */,
 				6BC3473320495959006FA912 /* ViewController.h */,
 				6BC3473420495959006FA912 /* ViewController.m */,
+				6BB745FB204E327400415C51 /* Reachability.h */,
+				6BB745FC204E327400415C51 /* Reachability.m */,
 				6BB745D6204CEF0700415C51 /* YouTubeUploader.h */,
 				6BB745D7204CEF0700415C51 /* YouTubeUploader.m */,
 				6BC3473620495959006FA912 /* Main.storyboard */,
@@ -183,6 +188,7 @@
 				6BB745D8204CEF0700415C51 /* YouTubeUploader.m in Sources */,
 				6BC3474020495959006FA912 /* main.m in Sources */,
 				6BC3473220495959006FA912 /* AppDelegate.m in Sources */,
+				6BB745FD204E327400415C51 /* Reachability.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
