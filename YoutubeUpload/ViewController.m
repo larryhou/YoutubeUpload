@@ -28,7 +28,7 @@
 
 - (void)uploadSampleVideo
 {
-    NSString* filename = @"Sample.mp4";
+    NSString* filename = @"YICity.mp4";
     NSString* filepath = [[NSBundle.mainBundle pathForResource:@"Youtube" ofType:@"bundle"] stringByAppendingPathComponent:filename];
     [YouTubeUploader.sharedUploader sendUploadRequest:filepath title:@"标题" description:@"描述"];
 }

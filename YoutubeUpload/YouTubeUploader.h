@@ -17,8 +17,9 @@ typedef NS_ENUM(NSInteger, UploadStatus)
     UploadStatusAuthorize,
     UploadStatusConfigurate,
     UploadStatusUpload,
-    UploadStatusIntegrityCheck,
+    UploadStatusCompletionCheck,
     UploadStatusComplete,
+    UploadStatusCancel,
     UploadStatusError
 };
 

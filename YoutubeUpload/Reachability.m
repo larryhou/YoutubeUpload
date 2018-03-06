@@ -100,7 +100,8 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
         {
             returnValue->_reachabilityRef = reachability;
         }
-        else {
+        else
+        {
             CFRelease(reachability);
         }
     }

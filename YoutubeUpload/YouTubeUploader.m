@@ -7,6 +7,7 @@
 //
 
 #import "YouTubeUploader.h"
+#import "Reachability.h"
 
 @interface YouTubeUploader()
 {
@@ -49,10 +50,7 @@
 {
     if (self = [super init])
     {
-        _videoSession = [NSURLSession
-                         sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
-                         delegate:self
-                         delegateQueue:NSOperationQueue.mainQueue];
+        _videoSession = [self createVideoSession];
         [self setStatus:UploadStatusNone];
     }
     
@@ -140,7 +138,7 @@
 //MARK: API request
 - (void)sendRequest:(NSString *)server
              method:(NSString *)method
-             header:(NSDictionary<NSString*, NSString*> * _Nullable)header
+             header:(NSDictionary<NSString*, id> * _Nullable)header
             payload:(NSData * _Nullable)payload
          completion:(void (^)(NSHTTPURLResponse * _Nullable))completion
 {
@@ -187,7 +185,7 @@
 {
     NSNumber* filesize = [self sizeOf:filepath];
     NSDictionary *header = @{@"Authorization":[NSString stringWithFormat:@"Bearer %@", _token],
-                             @"Content-Length":@0,
+                             @"Content-Length":@"0",
                              @"Content-Range":[NSString stringWithFormat:@"bytes */%@", filesize]
                              };
     [self sendRequest:server method:@"PUT" header:header payload:nil completion:^(NSHTTPURLResponse * _Nullable response)
@@ -201,7 +199,7 @@
                 NSString *range = [[field componentsSeparatedByString:@"="] lastObject];
                 if (range)
                 {
-                    NSInteger offset = [[[range componentsSeparatedByString:@"-"] firstObject] integerValue];
+                    NSInteger offset = [[[range componentsSeparatedByString:@"-"] lastObject] integerValue];
                     if (offset > 0) { position = offset + 1; }
                 }
             }
@@ -210,7 +208,17 @@
         }
         else
         {
-            completion(position, NO);
+            if (response)
+            {
+                completion(position, NO);
+            }
+            else
+            {
+                if (_status == UploadStatusCompletionCheck)
+                {
+                    [self checkInternetAndContinue];
+                }
+            }
         }
     }];
 }
@@ -222,6 +230,21 @@
 }
 
 //MARK: upload video
+- (void)cancelUpload
+{
+    _status = UploadStatusCancel;
+    [_videoSession invalidateAndCancel];
+    _videoSession = [self createVideoSession];
+}
+
+- (NSURLSession *)createVideoSession
+{
+    return [NSURLSession
+            sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
+            delegate:self
+            delegateQueue:NSOperationQueue.mainQueue];
+}
+
 - (void)sendUploadRequest:(NSString *)filepath
                     title:(NSString *)title
               description:(NSString *)description
@@ -327,8 +350,9 @@
     else
     {
         NSLog(@"error %@", error);
-        [self setStatus:UploadStatusError];
+        [self setStatus:UploadStatusCompletionCheck];
         [self alertWithTitle:@"error" message:nil];
+        [self checkInternetAndContinue];
     }
 }
 
@@ -363,21 +387,54 @@
     
     if (_server && _filepath)
     {
-        [self setStatus:UploadStatusIntegrityCheck];
-        [self checkUploadStatus:_filepath server:_server completion:^(NSInteger position, BOOL complete)
+        [self setStatus:UploadStatusCompletionCheck];
+        [self checkInternetAndContinue];
+    }
+}
+
+- (void)checkCompletionAndContinue
+{
+    [self checkUploadStatus:_filepath server:_server completion:^(NSInteger position, BOOL complete)
+     {
+         if (complete)
+         {
+             [self setStatus:UploadStatusComplete];
+         }
+         else
+         {
+             
+             [self resumeVideoContent:_filepath to:_server position:MAX(0, position)];
+         }
+     }];
+}
+
+//MARK: network monitor
+- (void)checkInternetAndContinue
+{
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(networkReachabilityChange:) name:kReachabilityChangedNotification object:nil];
+    
+    Reachability *reachability = [Reachability reachabilityForInternetConnection];
+    [reachability startNotifier];
+    [self tryContinue:reachability];
+}
+
+- (void)networkReachabilityChange:(NSNotification *)note
+{
+    Reachability *reachability = note.object;
+    NSLog(@"NETWORK_CHANGE:%ld", (long)reachability.currentReachabilityStatus);
+    [self tryContinue:reachability];
+}
+
+- (void)tryContinue:(Reachability *)reachability
+{
+    if (reachability.currentReachabilityStatus != NotReachable)
+    {
+        [reachability stopNotifier];
+        [NSNotificationCenter.defaultCenter removeObserver:self name:kReachabilityChangedNotification object:nil];
+        if (_status == UploadStatusCompletionCheck)
         {
-            if (position >= 0)
-            {
-                if (complete)
-                {
-                    [self setStatus:UploadStatusComplete];
-                }
-                else
-                {
-                    [self resumeVideoContent:_filepath to:_server position:position];
-                }
-            }
-        }];
+            [self checkCompletionAndContinue];
+        }
     }
 }
 
