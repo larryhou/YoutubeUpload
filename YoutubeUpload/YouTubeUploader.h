@@ -19,7 +19,7 @@ typedef NS_ENUM(NSInteger, UploadStatus)
     UploadStatusUpload,
     UploadStatusCompletionCheck,
     UploadStatusComplete,
-    UploadStatusCancel,
+    UploadStatusCanceled,
     UploadStatusError
 };
 
@@ -31,6 +31,16 @@ typedef NS_ENUM(NSInteger, UploadStatus)
 
 @optional
 - (void)YouTubeUploader:(YouTubeUploader * _Nonnull)uploader progress: (float)progress;
+
+@optional
+- (void)YouTubeUploader:(YouTubeUploader * _Nonnull)uploader complete: (NSString * _Nonnull)data;
+
+@optional
+- (void)YouTubeUploader:(YouTubeUploader * _Nonnull)uploader failWithCode: (NSInteger)statusCode;
+
+@optional
+- (void)YouTubeUploader:(YouTubeUploader * _Nonnull)uploader error: (NSError * _Nonnull)error;
+
 @end
 
 @interface YouTubeUploader : NSObject<NSURLSessionDataDelegate>

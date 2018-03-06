@@ -18,6 +18,8 @@
     id<OIDAuthorizationFlowSession> _flowSession;
     OIDAuthState * _auth;
     NSString * _token;
+    
+    int _retryCount;
 };
 
 @property(nonatomic, readwrite) BOOL uploading;
@@ -230,9 +232,9 @@
 }
 
 //MARK: upload video
-- (void)cancelUpload
+- (void)cancelCurrentUpload
 {
-    _status = UploadStatusCancel;
+    _status = UploadStatusCanceled;
     [_videoSession invalidateAndCancel];
     _videoSession = [self createVideoSession];
 }
@@ -276,6 +278,8 @@
     
     [self sendRequest:YOUTUBE_UPLOAD_API method:@"POST" header:header payload:payload completion:^(NSHTTPURLResponse * _Nullable response)
     {
+        if (_status == UploadStatusCanceled) {return;}
+        
         if (response && response.statusCode == 200)
         {
             [self sendVideoContent:filepath to:response.allHeaderFields[@"Location"]];
@@ -309,7 +313,9 @@
 - (void)sendVideoContent:(NSString *)filepath
                       to:(NSString *)server
 {
+    _retryCount = 0;
     _server = server;
+    
     [self setStatus:UploadStatusUpload];
     NSNumber *filesize = [self sizeOf:filepath];
     NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:server]];
@@ -329,6 +335,8 @@
 
 - (void)processUploadCompletion:(NSData *)data response:(NSURLResponse *)response error:(NSError *)error
 {
+    if (_status == UploadStatusCanceled) {return;}
+    
     if (error == nil)
     {
         NSLog(@"UPLOAD %@", response);
@@ -338,21 +346,50 @@
         {
             NSLog(@"%@", message);
             [self setStatus:UploadStatusComplete];
-            [self alertWithTitle:@"UPLOAD SUCCESS" message:nil];
+            [self alertWithTitle:@"upload success" message:nil];
+            if ([_delegate respondsToSelector:@selector(YouTubeUploader:complete:)])
+            {
+                [_delegate YouTubeUploader:self complete:message];
+            }
         }
         else
         {
             [self setStatus:UploadStatusError];
             [self alertWithTitle:[NSString stringWithFormat:@"%ld", http.statusCode]
                          message:message];
+            
+            if ([_delegate respondsToSelector:@selector(YouTubeUploader:failWithCode:)])
+            {
+                [_delegate YouTubeUploader:self failWithCode:http.statusCode];
+            }
         }
     }
     else
     {
         NSLog(@"error %@", error);
-        [self setStatus:UploadStatusCompletionCheck];
         [self alertWithTitle:@"error" message:nil];
-        [self checkInternetAndContinue];
+        [self setStatus:UploadStatusCompletionCheck];
+        [self processInternetError:error];
+    }
+}
+
+- (void)processInternetError:(NSError *)error
+{
+    if ([_delegate respondsToSelector:@selector(YouTubeUploader:error:)])
+    {
+        [_delegate YouTubeUploader:self error:error];
+    }
+    
+    if (++_retryCount >= 3)
+    {
+        [self alertWithTitle:@"upload error" message:error.localizedDescription];
+    }
+    else
+    {
+        if (_status == UploadStatusCompletionCheck)
+        {
+            [self checkInternetAndContinue];
+        }
     }
 }
 
@@ -383,12 +420,14 @@
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
 {
+    if (_status == UploadStatusCanceled) {return;}
+    
     [self setStatus:UploadStatusError];
     
     if (_server && _filepath)
     {
         [self setStatus:UploadStatusCompletionCheck];
-        [self checkInternetAndContinue];
+        [self processInternetError:error];
     }
 }
 
@@ -415,6 +454,7 @@
     
     Reachability *reachability = [Reachability reachabilityForInternetConnection];
     [reachability startNotifier];
+    
     [self tryContinue:reachability];
 }
 
